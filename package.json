@@ -1,0 +1,19 @@
+{
+  "name": "crous-tracker-server",
+  "version": "1.0.0",
+  "description": "Tracker automatique des logements CROUS avec alertes email",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "node-fetch": "^2.7.0",
+    "node-html-parser": "^6.1.13",
+    "nodemailer": "^6.9.13"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
