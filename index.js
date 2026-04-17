@@ -15,79 +15,69 @@ const http       = require("http");
 // CONFIG — via variables d'environnement (.env)
 // ─────────────────────────────────────────────
 const CONFIG = {
-  // Villes séparées par des virgules  ex: "Paris,Lyon,Bordeaux"
-  CITIES: (process.env.CITIES || "Paris").split(",").map(c => c.trim()),
-
-  // Loyer max en euros
-  MAX_PRICE: parseInt(process.env.MAX_PRICE || "800", 10),
-
-  // Intervalle en minutes
+  CITIES:           (process.env.CITIES || "Paris").split(",").map(c => c.trim()),
+  MAX_PRICE:        parseInt(process.env.MAX_PRICE || "800", 10),
   INTERVAL_MINUTES: parseInt(process.env.INTERVAL_MINUTES || "5", 10),
-
-  // Email destinataire
-  EMAIL_TO: process.env.EMAIL_TO || "",
-
-  // Config SMTP (Gmail recommandé)
-  SMTP_HOST:     process.env.SMTP_HOST     || "smtp.gmail.com",
-  SMTP_PORT:     parseInt(process.env.SMTP_PORT || "587", 10),
-  SMTP_USER:     process.env.SMTP_USER     || "",   // ton adresse Gmail
-  SMTP_PASS:     process.env.SMTP_PASS     || "",   // mot de passe d'application Google
-
-  // Port HTTP (pour le health check Railway/Render)
-  PORT: parseInt(process.env.PORT || "3000", 10),
+  EMAIL_TO:         process.env.EMAIL_TO || "adelsidiahmed2020@gmail.com",
+  SMTP_HOST:        process.env.SMTP_HOST || "smtp.gmail.com",
+  SMTP_PORT:        parseInt(process.env.SMTP_PORT || "587", 10),
+  SMTP_USER:        process.env.SMTP_USER || "",
+  SMTP_PASS:        process.env.SMTP_PASS || "",
+  PORT:             parseInt(process.env.PORT || "3000", 10),
 };
 
 // ─────────────────────────────────────────────
-// MAPPING VILLE → RÉGION CROUS
+// MAPPING VILLE → { tool, bounds }
+// Pour ajouter une ville : va sur trouverunlogement.lescrous.fr,
+// cherche ta ville, et copie l'URL — récupère tool et bounds dedans.
 // ─────────────────────────────────────────────
-const CROUS_REGIONS = {
-  "paris":         "tools/31",
-  "ile-de-france": "tools/31",
-  "versailles":    "tools/31",
-  "creteil":       "tools/31",
-  "lyon":          "tools/1",
-  "marseille":     "tools/3",
-  "aix":           "tools/3",
-  "bordeaux":      "tools/42",
-  "toulouse":      "tools/19",
-  "montpellier":   "tools/32",
-  "lille":         "tools/23",
-  "rennes":        "tools/28",
-  "brest":         "tools/28",
-  "nantes":        "tools/36",
-  "strasbourg":    "tools/12",
-  "grenoble":      "tools/8",
-  "nice":          "tools/37",
-  "nancy":         "tools/24",
-  "metz":          "tools/24",
-  "caen":          "tools/14",
-  "rouen":         "tools/16",
-  "clermont":      "tools/5",
-  "dijon":         "tools/7",
-  "tours":         "tools/39",
-  "poitiers":      "tools/22",
-  "limoges":       "tools/22",
-  "amiens":        "tools/18",
-  "reims":         "tools/12",
-  "besancon":      "tools/7",
-  "pau":           "tools/19",
-  "perpignan":     "tools/32",
-  "nimes":         "tools/32",
-  "angers":        "tools/36",
-  "le mans":       "tools/36",
-  "orleans":       "tools/39",
+const CROUS_CITIES = {
+  "paris":        { tool: "42", bounds: "2.224122_48.902156_2.4697602_48.8155755" },
+  "versailles":   { tool: "42", bounds: "2.0627_48.8351_2.1594_48.7888" },
+  "creteil":      { tool: "42", bounds: "2.4295_48.7970_2.4880_48.7670" },
+  "lyon":         { tool: "42", bounds: "4.771572126783989_45.783966009716735_4.900427873216012_45.694033990283266" },
+  "marseille":    { tool: "42", bounds: "5.3204_43.3207_5.4083_43.2504" },
+  "aix":          { tool: "42", bounds: "5.4042_43.5432_5.4680_43.5036" },
+  "bordeaux":     { tool: "42", bounds: "-0.6843641392097606_44.838966009716735_-0.5576358607902394_44.74903399028326" },
+  "toulouse":     { tool: "42", bounds: "1.3868_43.6357_1.5235_43.5560" },
+  "montpellier":  { tool: "42", bounds: "3.8244_43.6340_3.9131_43.5752" },
+  "lille":        { tool: "42", bounds: "2.9869_50.6730_3.1236_50.5933" },
+  "rennes":       { tool: "42", bounds: "-1.7457_48.1424_-1.6090_48.0627" },
+  "brest":        { tool: "42", bounds: "-4.5493_48.4204_-4.4126_48.3607" },
+  "nantes":       { tool: "42", bounds: "-1.6058_47.2552_-1.4691_47.1755" },
+  "strasbourg":   { tool: "42", bounds: "7.6862_48.6090_7.8229_48.5293" },
+  "grenoble":     { tool: "42", bounds: "5.6747_45.2123_5.7784_45.1526" },
+  "nice":         { tool: "42", bounds: "7.2019_43.7317_7.3046_43.6720" },
+  "nancy":        { tool: "42", bounds: "6.1449_48.7143_6.2136_48.6746" },
+  "metz":         { tool: "42", bounds: "6.1315_49.1394_6.2002_49.0997" },
+  "caen":         { tool: "42", bounds: "-0.3990_49.2234_-0.3303_49.1837" },
+  "rouen":        { tool: "42", bounds: "1.0538_49.4700_1.1225_49.4103" },
+  "clermont":     { tool: "42", bounds: "3.0515_45.7994_3.1202_45.7597" },
+  "dijon":        { tool: "42", bounds: "5.0076_47.3467_5.0763_47.3070" },
+  "tours":        { tool: "42", bounds: "0.6558_47.4150_0.7245_47.3553" },
+  "poitiers":     { tool: "42", bounds: "0.2949_46.5997_0.3636_46.5600" },
+  "limoges":      { tool: "42", bounds: "1.2323_45.8566_1.3010_45.8169" },
+  "amiens":       { tool: "42", bounds: "2.2666_49.9195_2.3353_49.8798" },
+  "reims":        { tool: "42", bounds: "3.9869_49.2793_4.0556_49.2396" },
+  "besancon":     { tool: "42", bounds: "5.9952_47.2706_6.0639_47.2309" },
+  "pau":          { tool: "42", bounds: "-0.4082_43.3327_-0.3395_43.2930" },
+  "perpignan":    { tool: "42", bounds: "2.8499_42.7244_2.9186_42.6847" },
+  "nimes":        { tool: "42", bounds: "4.3246_43.8583_4.3933_43.8186" },
+  "angers":       { tool: "42", bounds: "-0.5870_47.5054_-0.5183_47.4657" },
+  "le mans":      { tool: "42", bounds: "0.1661_48.0392_0.2348_47.9995" },
+  "orleans":      { tool: "42", bounds: "1.8757578_47.9335389_1.9487114_47.8132802" },
 };
 
-function getCrousPath(city) {
+function getCrousConfig(city) {
   const norm = city
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
-  for (const [key, path] of Object.entries(CROUS_REGIONS)) {
-    if (norm.includes(key)) return path;
+  for (const [key, cfg] of Object.entries(CROUS_CITIES)) {
+    if (norm.includes(key)) return cfg;
   }
-  return "tools/31"; // fallback Paris
+  return CROUS_CITIES["paris"]; // fallback
 }
 
 // ─────────────────────────────────────────────
@@ -101,20 +91,18 @@ let   newCount    = 0;
 // SCRAPING
 // ─────────────────────────────────────────────
 async function fetchListings(city) {
-  const path = getCrousPath(city);
-  const url  = `https://trouverunlogement.lescrous.fr/${path}/search?price=${CONFIG.MAX_PRICE}`;
+  const { tool, bounds } = getCrousConfig(city);
+  const url = `https://trouverunlogement.lescrous.fr/tools/${tool}/search?bounds=${bounds}`;
 
   try {
     const res = await fetch(url, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml",
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept":          "text/html,application/xhtml+xml",
         "Accept-Language": "fr-FR,fr;q=0.9",
       },
       timeout: 15000,
     });
-
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     return parseListings(html, city);
@@ -153,11 +141,7 @@ function parseListings(html, city) {
     const address = addrEl ? addrEl.text.replace(/\s+/g, " ").trim() : city;
 
     items.push({
-      id,
-      name,
-      price,
-      address,
-      city,
+      id, name, price, address, city,
       url: `https://trouverunlogement.lescrous.fr${href}`,
     });
   });
@@ -165,8 +149,7 @@ function parseListings(html, city) {
   // Stratégie 2 (fallback regex)
   if (items.length === 0) {
     const matches = [...html.matchAll(/\/accommodations\/(\d+)/g)];
-    const unique  = [...new Set(matches.map(m => m[1]))];
-    unique.forEach(id => {
+    [...new Set(matches.map(m => m[1]))].forEach(id => {
       if (seen.has(id)) return;
       seen.add(id);
       items.push({
@@ -175,7 +158,7 @@ function parseListings(html, city) {
         price:   "",
         address: city,
         city,
-        url:     `https://trouverunlogement.lescrous.fr/tools/42/accommodations/${id}`,
+        url: `https://trouverunlogement.lescrous.fr/tools/42/accommodations/${id}`,
       });
     });
   }
@@ -184,7 +167,7 @@ function parseListings(html, city) {
 }
 
 // ─────────────────────────────────────────────
-// NODEMAILER
+// EMAIL
 // ─────────────────────────────────────────────
 let transporter = null;
 
@@ -194,10 +177,7 @@ function getTransporter() {
       host:   CONFIG.SMTP_HOST,
       port:   CONFIG.SMTP_PORT,
       secure: CONFIG.SMTP_PORT === 465,
-      auth: {
-        user: CONFIG.SMTP_USER,
-        pass: CONFIG.SMTP_PASS,
-      },
+      auth: { user: CONFIG.SMTP_USER, pass: CONFIG.SMTP_PASS },
     });
   }
   return transporter;
@@ -213,21 +193,17 @@ async function sendEmail(newItems) {
     .map(i => `• ${i.name} (${i.city}) — ${i.price || "prix non renseigné"}\n  ${i.url}`)
     .join("\n\n");
 
-  const listHtml = newItems
-    .map(i => `
-      <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;">
-          <a href="${i.url}" style="color:#1D9E75;text-decoration:none;font-weight:600;">
-            ${escHtml(i.name)}
-          </a><br/>
-          <small style="color:#888;">${escHtml(i.address)}</small>
-        </td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1D9E75;">
-          ${i.price ? escHtml(i.price) : "–"}
-        </td>
-      </tr>
-    `)
-    .join("");
+  const listHtml = newItems.map(i => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;">
+        <a href="${i.url}" style="color:#1D9E75;text-decoration:none;font-weight:600;">${escHtml(i.name)}</a><br/>
+        <small style="color:#888;">${escHtml(i.address)}</small>
+      </td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1D9E75;">
+        ${i.price ? escHtml(i.price) : "–"}
+      </td>
+    </tr>
+  `).join("");
 
   const htmlBody = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -262,7 +238,7 @@ async function sendEmail(newItems) {
       from:    `"CROUS Tracker" <${CONFIG.SMTP_USER}>`,
       to:      CONFIG.EMAIL_TO,
       subject: `[CROUS] ${newItems.length} nouveau(x) logement(s) — ${CONFIG.CITIES.join(", ")}`,
-      text:    `${newItems.length} nouveau(x) logement(s) disponible(s) :\n\n${listText}`,
+      text:    `${newItems.length} nouveau(x) logement(s) :\n\n${listText}`,
       html:    htmlBody,
     });
     log(`Email envoyé à ${CONFIG.EMAIL_TO}`);
@@ -283,7 +259,6 @@ async function checkAll() {
   for (const city of CONFIG.CITIES) {
     const listings = await fetchListings(city);
     log(`  ${city} : ${listings.length} logement(s) trouvé(s)`);
-
     for (const item of listings) {
       if (!knownIds.has(item.id)) {
         knownIds.add(item.id);
@@ -305,11 +280,12 @@ async function checkAll() {
 }
 
 // ─────────────────────────────────────────────
-// SERVEUR HTTP (health check pour Railway/Render)
+// HEALTH SERVER (Railway / Render)
 // ─────────────────────────────────────────────
 function startHealthServer() {
-  const server = http.createServer((req, res) => {
-    const status = {
+  http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
       status:      "running",
       checks:      checksCount,
       newListings: newCount,
@@ -318,30 +294,21 @@ function startHealthServer() {
       interval:    `${CONFIG.INTERVAL_MINUTES}min`,
       uptime:      `${Math.floor(process.uptime() / 60)} min`,
       lastCheck:   new Date().toISOString(),
-    };
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(status, null, 2));
-  });
-
-  server.listen(CONFIG.PORT, () => {
-    log(`Health server démarré sur le port ${CONFIG.PORT}`);
-  });
+    }, null, 2));
+  }).listen(CONFIG.PORT, () => log(`Health server démarré sur le port ${CONFIG.PORT}`));
 }
 
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
 function log(msg) {
-  const now = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-  console.log(`[${now}] ${msg}`);
+  console.log(`[${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}] ${msg}`);
 }
 
 function escHtml(str) {
   return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ─────────────────────────────────────────────
@@ -357,13 +324,8 @@ async function main() {
   log(`Email vers : ${CONFIG.EMAIL_TO || "(non configuré)"}`);
   log("════════════════════════════════════════\n");
 
-  // Démarrer le health server
   startHealthServer();
-
-  // Première vérification immédiate
   await checkAll();
-
-  // Puis toutes les N minutes
   setInterval(checkAll, CONFIG.INTERVAL_MINUTES * 60 * 1000);
 }
 
